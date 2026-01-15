@@ -256,12 +256,13 @@ isInCategory(category) {
     }
     
     _validateCategory(category) {
-        const validCategories = ['work', 'personal', 'study', 'health', 'finance', 'other'];
-        if (!validCategories.includes(category)) {
-            throw new Error(`Kategori tidak valid: ${category}. Harus salah satu dari: ${validCategories.join(', ')}`);
-        }
-        return category;
+    const validCategories = ['work', 'personal', 'study', 'health', 'finance', 'shopping', 'other'];
+    if (!validCategories.includes(category)) {
+        throw new Error(`Kategori tidak valid: ${category}. Harus salah satu dari: ${validCategories.join(', ')}`);
     }
+    return category;
+}
+
     
     _validatePriority(priority) {
         const validPriorities = ['low', 'medium', 'high', 'urgent'];
