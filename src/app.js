@@ -48,11 +48,11 @@ function initializeApp() {
     // Render initial UI
     renderTaskList();
     renderTaskStats();
+    renderCategoryStats(); // NEW: Render category stats
     
     console.log('✅ Application initialized successfully!');
     console.log(`📊 Loaded ${taskService.getAllTasks().length} existing tasks`);
 }
-
 /**
  * Set up DOM event listeners
  */
@@ -75,6 +75,12 @@ function setupEventListeners() {
         btn.addEventListener('click', handleFilterChange);
     });
 }
+
+// Category filter buttons
+const categoryButtons = document.querySelectorAll('.category-btn');
+categoryButtons.forEach(btn => {
+    btn.addEventListener('click', handleCategoryFilter);
+});
 
 /**
  * Handle task form submission
@@ -188,14 +194,14 @@ function handleFilterChange(event) {
 /**
  * Render the task list
  */
-function renderTaskList(filter = 'all') {
+function renderTaskList(filterType = 'all', filterValue = null) {
     const taskListContainer = document.getElementById('taskList');
     if (!taskListContainer) return;
     
     let tasks = taskService.getAllTasks();
     
-    // Apply filter
-    switch (filter) {
+    // Apply filters
+    switch (filterType) {
         case 'pending':
             tasks = tasks.filter(task => !task.completed);
             break;
@@ -211,15 +217,22 @@ function renderTaskList(filter = 'all') {
         case 'low':
             tasks = tasks.filter(task => task.priority === 'low');
             break;
+        case 'category':
+            tasks = tasks.filter(task => task.category === filterValue);
+            break;
     }
     
     // Sort tasks by creation date (newest first)
     tasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     if (tasks.length === 0) {
+        const filterText = filterType === 'category' ? 
+            `in ${filterValue} category` : 
+            `with ${filterType} filter`;
+            
         taskListContainer.innerHTML = `
             <div class="empty-state">
-                <p>No tasks found</p>
+                <p>No tasks found ${filterText}</p>
                 <small>Create your first task using the form above</small>
             </div>
         `;
@@ -230,20 +243,38 @@ function renderTaskList(filter = 'all') {
     taskListContainer.innerHTML = taskHTML;
 }
 
+
 /**
  * Create HTML for a single task
  */
 function createTaskHTML(task) {
     const priorityClass = `priority-${task.priority}`;
     const completedClass = task.completed ? 'completed' : '';
+    const categoryClass = `category-${task.category}`;
     const createdDate = new Date(task.createdAt).toLocaleDateString();
+    
+    // Get category display name
+    const categoryDisplayNames = {
+        'work': 'Work',
+        'personal': 'Personal',
+        'study': 'Study',
+        'health': 'Health',
+        'finance': 'Finance',
+        'shopping': 'Shopping',
+        'other': 'Other'
+    };
+    
+    const categoryDisplay = categoryDisplayNames[task.category] || task.category;
     
     return `
         <div class="task-item ${priorityClass} ${completedClass}" data-task-id="${task.id}">
             <div class="task-content">
                 <div class="task-header">
                     <h3 class="task-title">${escapeHtml(task.title)}</h3>
-                    <span class="task-priority">${task.priority}</span>
+                    <div class="task-badges">
+                        <span class="task-priority">${task.priority}</span>
+                        <span class="task-category ${categoryClass}">${categoryDisplay}</span>
+                    </div>
                 </div>
                 ${task.description ? `<p class="task-description">${escapeHtml(task.description)}</p>` : ''}
                 <div class="task-meta">
@@ -262,6 +293,64 @@ function createTaskHTML(task) {
         </div>
     `;
 }
+
+/**
+ * Render category statistics
+ */
+function renderCategoryStats() {
+    const statsContainer = document.getElementById('categoryStats');
+    if (!statsContainer) return;
+    
+    const tasks = taskService.getAllTasks();
+    const categoryStats = {};
+    
+    // Initialize categories
+    const categories = ['work', 'personal', 'study', 'health', 'finance', 'shopping', 'other'];
+    categories.forEach(cat => {
+        categoryStats[cat] = { total: 0, completed: 0 };
+    });
+    
+    // Count tasks by category
+    tasks.forEach(task => {
+        if (categoryStats[task.category]) {
+            categoryStats[task.category].total++;
+            if (task.completed) {
+                categoryStats[task.category].completed++;
+            }
+        }
+    });
+    
+    // Render stats
+    const statsHTML = Object.entries(categoryStats)
+        .filter(([category, stats]) => stats.total > 0)
+        .map(([category, stats]) => {
+            const displayNames = {
+                'work': 'Work',
+                'personal': 'Personal', 
+                'study': 'Study',
+                'health': 'Health',
+                'finance': 'Finance',
+                'shopping': 'Shopping',
+                'other': 'Other'
+            };
+            
+            return `
+                <div class="category-stat-item">
+                    <h4>${displayNames[category]}</h4>
+                    <div class="stat-number">${stats.total}</div>
+                    <small>${stats.completed} completed</small>
+                </div>
+            `;
+        }).join('');
+    
+    if (statsHTML) {
+        statsContainer.innerHTML = `
+            <h3>Tasks by Category</h3>
+            <div class="category-stats">${statsHTML}</div>
+        `;
+    }
+}
+
 
 /**
  * Render task statistics
@@ -771,5 +860,27 @@ if (typeof module !== 'undefined' && module.exports) {
         app
     };
 }
+
+/**
+ * Handle category filter changes
+ */
+function handleCategoryFilter(event) {
+    const category = event.target.dataset.category;
+    
+    // Update active category button
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Clear other filters
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Render tasks filtered by category
+    renderTaskList('category', category);
+}
+
     
     
