@@ -1,4 +1,4 @@
-const User = require('../models/User');
+
 class UserRepository {
     constructor(storageManager) {
         this.storage = storageManager;
