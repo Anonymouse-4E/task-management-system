@@ -1,4 +1,11 @@
+//const User = require("../models/User");
 
+//const User = require('../models/User'); 
+if (typeof require !== 'undefined' && module !== 'undefined') {
+    if (typeof User === 'undefined') {
+        User = require("../models/User");
+    }
+}
 class UserRepository {
     constructor(storageManager) {
         this.storage = storageManager;

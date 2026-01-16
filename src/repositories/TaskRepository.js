@@ -1,3 +1,10 @@
+//const EnhancedTask = require('../models/EnhancedTask');//
+
+if (typeof require !== 'undefined' && module !== 'undefined') {
+    if (typeof EnhancedTask === 'undefined') {
+        EnhancedTask = require('../models/EnhancedTask');
+    }
+}
 
 class TaskRepository {
     constructor(storageManager) {

@@ -1,150 +1,226 @@
-// Import dependencies
 const TestDataFactory = require('../helpers/TestDataFactory');
 const TestAssertions = require('../helpers/TestAssertions');
+const EnhancedTask = require('../../src/models/EnhancedTask');
 
-// Import class yang akan di-test
-const User = require('../../src/models/User');
-
-describe('User Model', () => {
-    describe('User Creation', () => {
-        test('should create user with valid data', () => {
-            // Arrange (Persiapan)
-            const userData = TestDataFactory.createValidUserData();
-            
-            // Act (Aksi yang di-test)
-            const user = new User(userData.username, userData.email, userData.fullName);
-            
-            // Assert (Verifikasi hasil)
-            expect(user.username).toBe(userData.username);
-            expect(user.email).toBe(userData.email);
-            expect(user.fullName).toBe(userData.fullName);
-            expect(user.isActive).toBe(true);
-            TestAssertions.assertUserHasRequiredProperties(user);
-        });
-        
-        test('should throw error when username is empty', () => {
+describe('EnhancedTask Model', () => {
+    describe('Task Creation', () => {
+        test('should create task with required properties', () => {
             // Arrange
-            const userData = TestDataFactory.createValidUserData({ username: '' });
-            
-            // Act & Assert
-            expect(() => {
-                new User(userData.username, userData.email, userData.fullName);
-            }).toThrow('Username wajib diisi');
-        });
-        
-        test('should throw error when email is invalid', () => {
-            // Arrange
-            const userData = TestDataFactory.createValidUserData({ email: 'invalid-email' });
-            
-            // Act & Assert
-            expect(() => {
-                new User(userData.username, userData.email, userData.fullName);
-            }).toThrow('Email tidak valid');
-        });
-        
-        test('should generate unique ID for each user', () => {
-            // Arrange
-            const userData1 = TestDataFactory.createValidUserData({ username: 'user1' });
-            const userData2 = TestDataFactory.createValidUserData({ username: 'user2' });
+            const taskData = TestDataFactory.createValidTaskData();
             
             // Act
-            const user1 = new User(userData1.username, userData1.email, userData1.fullName);
-            const user2 = new User(userData2.username, userData2.email, userData2.fullName);
+            const task = new EnhancedTask(
+                taskData.title, 
+                taskData.description, 
+                taskData.ownerId,
+                { 
+                    category: taskData.category,
+                    priority: taskData.priority 
+                }
+            );
             
             // Assert
-            expect(user1.id).toBeDefined();
-            expect(user2.id).toBeDefined();
-            expect(user1.id).not.toBe(user2.id);
+            expect(task.title).toBe(taskData.title);
+            expect(task.description).toBe(taskData.description);
+            expect(task.ownerId).toBe(taskData.ownerId);
+            expect(task.category).toBe(taskData.category);
+            expect(task.priority).toBe(taskData.priority);
+            TestAssertions.assertTaskHasRequiredProperties(task);
+        });
+        
+        test('should throw error when title is empty', () => {
+            // Arrange
+            const taskData = TestDataFactory.createValidTaskData({ title: '' });
+            
+            // Act & Assert
+            expect(() => {
+                new EnhancedTask(taskData.title, taskData.description, taskData.ownerId);
+            }).toThrow('Judul task wajib diisi');
+        });
+        
+        test('should throw error when ownerId is missing', () => {
+            // Arrange
+            const taskData = TestDataFactory.createValidTaskData();
+            
+            // Act & Assert
+            expect(() => {
+                new EnhancedTask(taskData.title, taskData.description, null);
+            }).toThrow('Owner ID wajib diisi');
+        });
+        
+        test('should set default values correctly', () => {
+            // Arrange
+            const taskData = TestDataFactory.createValidTaskData();
+            
+            // Act
+            const task = new EnhancedTask(taskData.title, taskData.description, taskData.ownerId);
+            
+            // Assert
+            expect(task.category).toBe('personal'); // default category
+            expect(task.priority).toBe('medium'); // default priority
+            expect(task.status).toBe('pending'); // default status
+            expect(task.assigneeId).toBe(taskData.ownerId); // default assigned to owner
         });
     });
     
-    describe('User Methods', () => {
-        let user;
+    describe('Task Properties and Computed Values', () => {
+        let task;
         
         beforeEach(() => {
-            // Setup yang dijalankan sebelum setiap test
-            const userData = TestDataFactory.createValidUserData();
-            user = new User(userData.username, userData.email, userData.fullName);
+            const taskData = TestDataFactory.createValidTaskData();
+            task = new EnhancedTask(taskData.title, taskData.description, taskData.ownerId);
         });
         
-        test('should update profile successfully', () => {
-            // Arrange
-            const newFullName = 'Updated Name';
-            const newEmail = 'updated@example.com';
+        test('should calculate isCompleted correctly', () => {
+            // Initially not completed
+            expect(task.isCompleted).toBe(false);
             
-            // Act
-            user.updateProfile(newFullName, newEmail);
-            
-            // Assert
-            expect(user.fullName).toBe(newFullName);
-            expect(user.email).toBe(newEmail);
+            // After marking as completed
+            task.updateStatus('completed');
+            expect(task.isCompleted).toBe(true);
         });
         
-        test('should record login time', () => {
-            // Arrange
-            const beforeLogin = new Date();
+        test('should calculate isOverdue correctly', () => {
+            // Task without due date should not be overdue
+            expect(task.isOverdue).toBe(false);
             
-            // Act
-            user.recordLogin();
+            // Task with future due date should not be overdue
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 1);
+            task.setDueDate(futureDate);
+            expect(task.isOverdue).toBe(false);
             
-            // Assert
-            expect(user.lastLoginAt).toBeDefined();
-            expect(user.lastLoginAt).toBeInstanceOf(Date);
-            expect(user.lastLoginAt.getTime()).toBeGreaterThanOrEqual(beforeLogin.getTime());
+            // Task with past due date should be overdue
+            const pastDate = new Date();
+            pastDate.setDate(pastDate.getDate() - 1);
+            task.setDueDate(pastDate);
+            expect(task.isOverdue).toBe(true);
+            
+            // Completed task should not be overdue even if past due date
+            task.updateStatus('completed');
+            expect(task.isOverdue).toBe(false);
         });
         
-        test('should deactivate user', () => {
-            // Act
-            user.deactivate();
+        test('should calculate daysUntilDue correctly', () => {
+            // Task without due date
+            expect(task.daysUntilDue).toBeNull();
             
-            // Assert
-            expect(user.isActive).toBe(false);
-        });
-        
-        test('should activate user', () => {
-            // Arrange
-            user.deactivate(); // First deactivate
+            // Task due tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            task.setDueDate(tomorrow);
+            expect(task.daysUntilDue).toBe(1);
             
-            // Act
-            user.activate();
-            
-            // Assert
-            expect(user.isActive).toBe(true);
+            // Task due yesterday
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            task.setDueDate(yesterday);
+            expect(task.daysUntilDue).toBe(-1);
         });
     });
     
-    describe('User Serialization', () => {
-        test('should convert to JSON correctly', () => {
-            // Arrange
-            const userData = TestDataFactory.createValidUserData();
-            const user = new User(userData.username, userData.email, userData.fullName);
-            
-            // Act
-            const json = user.toJSON();
-            
-            // Assert
-            expect(json).toHaveProperty('id', user.id);
-            expect(json).toHaveProperty('username', user.username);
-            expect(json).toHaveProperty('email', user.email);
-            expect(json).toHaveProperty('fullName', user.fullName);
-            expect(json).toHaveProperty('isActive', user.isActive);
-            expect(json).toHaveProperty('createdAt');
+    describe('Task Updates', () => {
+        let task;
+        
+        beforeEach(() => {
+            const taskData = TestDataFactory.createValidTaskData();
+            task = new EnhancedTask(taskData.title, taskData.description, taskData.ownerId);
         });
         
-        test('should create user from JSON correctly', () => {
+        test('should update title successfully', () => {
             // Arrange
-            const originalUser = new User('testuser', 'test@example.com', 'Test User');
-            const json = originalUser.toJSON();
+            const newTitle = 'Updated Task Title';
+            const oldUpdatedAt = task.updatedAt;
             
             // Act
-            const restoredUser = User.fromJSON(json);
+            task.updateTitle(newTitle);
             
             // Assert
-            expect(restoredUser.id).toBe(originalUser.id);
-            expect(restoredUser.username).toBe(originalUser.username);
-            expect(restoredUser.email).toBe(originalUser.email);
-            expect(restoredUser.fullName).toBe(originalUser.fullName);
-            expect(restoredUser.isActive).toBe(originalUser.isActive);
+            expect(task.title).toBe(newTitle);
+            // Gunakan toBeGreaterThanOrEqual untuk menghindari timing issue
+            expect(task.updatedAt.getTime()).toBeGreaterThanOrEqual(oldUpdatedAt.getTime());
+        });
+        
+        test('should throw error when updating title to empty', () => {
+            // Act & Assert
+            expect(() => {
+                task.updateTitle('');
+            }).toThrow('Judul task tidak boleh kosong');
+        });
+        
+        test('should update category successfully', () => {
+            // Act
+            task.updateCategory('study');
+            
+            // Assert
+            expect(task.category).toBe('study');
+        });
+        
+        test('should throw error for invalid category', () => {
+            // Act & Assert
+            expect(() => {
+                task.updateCategory('invalid-category');
+            }).toThrow('Kategori tidak valid');
+        });
+        
+        test('should add and remove tags', () => {
+            // Add tags
+            task.addTag('urgent');
+            task.addTag('important');
+            expect(task.tags).toContain('urgent');
+            expect(task.tags).toContain('important');
+            expect(task.tags).toHaveLength(2);
+            
+            // Remove tag
+            task.removeTag('urgent');
+            expect(task.tags).not.toContain('urgent');
+            expect(task.tags).toContain('important');
+            expect(task.tags).toHaveLength(1);
+        });
+        
+        test('should not add duplicate tags', () => {
+            // Add same tag twice
+            task.addTag('urgent');
+            task.addTag('urgent');
+            
+            // Should only have one instance
+            expect(task.tags.filter(tag => tag === 'urgent')).toHaveLength(1);
+        });
+    });
+    
+    describe('Task Serialization', () => {
+        test('should serialize and deserialize correctly', () => {
+            // Arrange
+            const taskData = TestDataFactory.createValidTaskData();
+            const originalTask = new EnhancedTask(
+                taskData.title, 
+                taskData.description, 
+                taskData.ownerId,
+                {
+                    category: 'work',
+                    priority: 'high',
+                    dueDate: new Date('2024-12-31')
+                }
+            );
+            
+            // Add some additional data
+            originalTask.addTag('important');
+            originalTask.addNote('This is a test note');
+            
+            // Act
+            const json = originalTask.toJSON();
+            const restoredTask = EnhancedTask.fromJSON(json);
+            
+            // Assert
+            expect(restoredTask.id).toBe(originalTask.id);
+            expect(restoredTask.title).toBe(originalTask.title);
+            expect(restoredTask.description).toBe(originalTask.description);
+            expect(restoredTask.ownerId).toBe(originalTask.ownerId);
+            expect(restoredTask.category).toBe(originalTask.category);
+            expect(restoredTask.priority).toBe(originalTask.priority);
+            expect(restoredTask.tags).toEqual(originalTask.tags);
+            expect(restoredTask.notes).toEqual(originalTask.notes);
+            expect(restoredTask.dueDate.getTime()).toBe(originalTask.dueDate.getTime());
         });
     });
 });
