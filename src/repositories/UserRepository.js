@@ -1,4 +1,4 @@
-
+const User = require('../models/User');
 class UserRepository {
     constructor(storageManager) {
         this.storage = storageManager;
@@ -28,7 +28,6 @@ class UserRepository {
             
             // Buat user baru
             const user = new User(userData.username, userData.email, userData.fullName);
-            
             // Simpan ke cache
             this.users.set(user.id, user);
             

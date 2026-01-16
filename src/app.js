@@ -48,11 +48,11 @@ function initializeApp() {
     // Render initial UI
     renderTaskList();
     renderTaskStats();
-    renderCategoryStats(); // NEW: Render category stats
     
     console.log('✅ Application initialized successfully!');
     console.log(`📊 Loaded ${taskService.getAllTasks().length} existing tasks`);
 }
+
 /**
  * Set up DOM event listeners
  */
@@ -76,10 +76,16 @@ function setupEventListeners() {
     });
 }
 
+
 // Category filter buttons
-const categoryButtons = document.querySelectorAll('.category-btn');
-categoryButtons.forEach(btn => {
-    btn.addEventListener('click', handleCategoryFilter);
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("DOM loaded");
+
+    // Category filter buttons
+    const categoryButtons = document.querySelectorAll('.category-btn');
+    categoryButtons.forEach(btn => {
+        btn.addEventListener('click', handleCategoryFilter);
+    });
 });
 
 /**
